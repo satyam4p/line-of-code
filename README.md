@@ -24,7 +24,7 @@ Number of code lines
 
 Total number of lines
 
-###supported language: JS
+### supported language: JS
 
 
 ## usage as a Module:
