@@ -1,0 +1,14 @@
+{
+  "name": "lineofcode",
+  "version": "1.0.0",
+  "main": "line_counter.js",
+  "scripts": {
+    "test": "jest --config jest.config.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
