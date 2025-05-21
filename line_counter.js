@@ -3,18 +3,47 @@ const fs = require("fs");
 const path = require("path");
 
 class Language {
-  constructor(name, singleLineComment) {
+  constructor(
+    name,
+    singleLineComment,
+    multiLineCommetStart,
+    multiLineCommentEnd
+  ) {
     this.name = name;
     this.singleLineComment = singleLineComment;
+    this.multiLineCommentStart = multiLineCommetStart;
+    this.multiLineCommentEnd = multiLineCommentEnd;
+    this.inMultiLineComment = false;
+    this.inMultilineString = false;
+    this.multilineStringStart = false;
+    this.multilineStringEnd = false;
   }
 
   isBlank(line) {
     return line.trim() === "";
   }
 
+  isMultiLineString(line) {
+    if (line.trim().includes("`")) {
+      if (this.multilineStringStart) {
+        this.multilineStringEnd = true;
+        this.inMultilineString = false;
+        return false;
+      } else {
+        this.multilineStringStart = true;
+        this.inMultilineString = true;
+        return true;
+      }
+    }
+    return false;
+  }
+
   isComment(line) {
     const trimmed = line.trim();
+    this.isMultiLineString(trimmed);
+    trimmed;
     return (
+      !this.inMultilineString &&
       trimmed.startsWith(this.singleLineComment) &&
       !this.hasCodeBeforeComment(trimmed)
     );
@@ -26,13 +55,51 @@ class Language {
   }
 
   isCode(line) {
-    return !this.isBlank(line) && !this.isComment(line);
+    this.isMultiLineString(line.trim());
+    return (
+      (!this.isBlank(line) && !this.isComment(line)) || this.inMultilineString
+    );
+  }
+
+  inMultiLineCommentStart(line) {
+    return line.includes(this.multiLineCommentStart);
+  }
+
+  inMultiLineCOmmentEnd(line) {
+    return line.includes(this.multiLineCommentEnd);
+  }
+
+  insideMultiLineComment(line) {
+    const trimmed = line.trim();
+
+    if (
+      trimmed.includes(this.inMultiLineCommentStart) &&
+      trimmed.includes(this.inMultiLineCOmmentEnd) &&
+      trimmed.indexOf(this.multiLineCommentStart) <
+        trimmed.indexOf(this.multiLineCommentEnd)
+    ) {
+      return true;
+    }
+
+    if (this.inMultiLineComment) {
+      if (this.inMultiLineCOmmentEnd(trimmed)) {
+        this.inMultiLineComment = false;
+      }
+      return true;
+    }
+
+    if (this.inMultiLineCommentStart(trimmed)) {
+      this.inMultiLineComment = !this.inMultiLineCOmmentEnd(trimmed);
+      return true;
+    }
+    return false;
   }
 }
 
 // Add more languages by extending Language
 const languages = {
-  js: new Language("JavaScript", "//"),
+  js: new Language("JavaScript", "//", "/*", "*/"),
+  python: new Language("Python", "#"),
 };
 
 function detectLanguage(filename) {
@@ -45,13 +112,20 @@ function countLines(filename, language) {
   const lines = fs.readFileSync(filename, "utf-8").split(/\r?\n/);
   let blank = 0,
     comment = 0,
-    code = 0;
+    code = 0,
+    multiline = 0;
   for (const line of lines) {
-    if (language.isBlank(line)) blank++;
-    else if (language.isComment(line)) comment++;
-    else code++;
+    if (language.isBlank(line)) {
+      blank++;
+    } else if (language.insideMultiLineComment(line)) {
+      multiline++;
+    } else if (language.isComment(line)) {
+      comment++;
+    } else {
+      code++;
+    }
   }
-  return { blank, comment, code, total: lines.length };
+  return { blank, comment, code, total: lines.length, multiline };
 }
 
 if (require.main === module) {
@@ -67,11 +141,13 @@ if (require.main === module) {
     console.error(e.message);
     process.exit(1);
   }
+
   const result = countLines(filename, language);
   console.log("Blank lines:", result.blank);
   console.log("Comment lines:", result.comment);
   console.log("Code lines:", result.code);
   console.log("Total lines:", result.total);
+  console.log("multiline lines:", result.multiline);
 }
 
 module.exports = { Language, countLines, detectLanguage, languages };
